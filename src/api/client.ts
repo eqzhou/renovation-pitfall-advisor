@@ -94,6 +94,7 @@ export async function callCloudFunction<T>(id: string, data: object): Promise<T>
 export const FRONTEND_REFERENCED_ROUTE_IDS: readonly string[] = [
   'ai.ask',
   'ai.report',
+  'report.get',
   'quota.get',
   'pay.order.create',
   'feedback.submit',

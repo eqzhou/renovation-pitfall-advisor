@@ -46,6 +46,14 @@ export const API_ROUTES: readonly ApiRoute[] = [
     summary: '基于会话生成并返回《装修避坑清单》报告',
   },
   {
+    id: 'report.get',
+    method: 'GET',
+    path: '/report',
+    tags: ['ai', 'report'],
+    protected: false,
+    summary: '按 reportId 读取已保存的报告（分享接收端使用；reportId 即访问凭证）',
+  },
+  {
     id: 'quota.get',
     method: 'GET',
     path: '/quota',

@@ -57,6 +57,12 @@ registerServerRoute({
   handler: 'cloudfunctions/ai-report/index.main',
 });
 registerServerRoute({
+  id: 'report.get',
+  method: 'GET',
+  path: '/report',
+  handler: 'cloudfunctions/report-get/index.main',
+});
+registerServerRoute({
   id: 'feedback.submit',
   method: 'POST',
   path: '/feedback',
