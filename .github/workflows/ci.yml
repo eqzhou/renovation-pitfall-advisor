@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit + contract tests
+        run: npm test
+
+      - name: TypeScript type-check
+        run: npm run type-check
+
+      - name: Build weapp bundle
+        run: npm run build:weapp
+
+      - name: Verify build artifacts
+        run: |
+          test -f dist/weapp/app.json
+          test -f dist/weapp/app.js
+          test -f dist/weapp/pages/index/index.js
+          test -f dist/weapp/skills/renovation-advisor/AGENTS.md
+          test -f dist/weapp/skills/renovation-advisor/SKILL.md
+          test -f dist/weapp/skills/renovation-advisor/mcp.json
+          test -f dist/weapp/cloudfunctions/ai-ask/index.js
+          test -f dist/weapp/cloudfunctions/pay-notify/index.js
+          echo "artifacts OK"
