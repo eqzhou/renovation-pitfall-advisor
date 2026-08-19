@@ -77,6 +77,14 @@ export const API_ROUTES: readonly ApiRoute[] = [
     protected: false,
     summary: '提交单条回答的“有帮助/无帮助”反馈，不阻塞主流程',
   },
+  {
+    id: 'feedback.stats',
+    method: 'GET',
+    path: '/feedback/stats',
+    tags: ['feedback', 'ops'],
+    protected: true,
+    summary: '反馈复盘统计：近 N 天帮助率/每日分布/无帮助问题 Top（仅管理员白名单可见）',
+  },
 ];
 
 /** 契约路由索引：id → route（测试与客户端调用均基于此，避免散落字符串） */

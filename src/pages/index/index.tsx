@@ -7,10 +7,12 @@ import { payOrderCreate } from '@/api/payOrderCreate';
 import { aiReport, type ReportHistory } from '@/api/aiReport';
 import { reportGet } from '@/api/reportGet';
 import { feedbackSubmit } from '@/api/feedbackSubmit';
+import { feedbackStats } from '@/api/feedbackStats';
 import { formatReportToText } from '@/utils/report-format';
 import type {
   AiReportResponse,
   AiScene,
+  FeedbackStatsResponse,
   PayOrderCreateRequest,
   QuotaResponse,
 } from '@/cloudfunctions/shared/types';
@@ -447,6 +449,30 @@ export default function Index() {
     }
   }
 
+  /** 反馈复盘 state */
+  const [statsModalOpen, setStatsModalOpen] = useState(false);
+  const [stats, setStats] = useState<FeedbackStatsResponse | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
+  /** 加载反馈复盘统计 */
+  async function loadStats() {
+    setStatsLoading(true);
+    setStatsError(null);
+    try {
+      const s = await feedbackStats();
+      setStats(s);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setStatsError(msg);
+      if (!/403|仅管理员/i.test(msg)) {
+        Taro.showToast({ title: msg, icon: 'none', duration: 3500 });
+      }
+    } finally {
+      setStatsLoading(false);
+    }
+  }
+
   function quotaText(q: QuotaResponse | null): { label: string; hint?: string } {
     if (!q) return { label: quotaError === 'rate' ? '额度加载失败' : '连接云开发…' };
     if (q.paid) {
@@ -774,11 +800,103 @@ export default function Index() {
             )}
           </View>
           <View className="mine__card">
+            <View className="mine__card-head">
+              <Text className="mine__title">反馈复盘（管理员）</Text>
+              <Button
+                size="mini"
+                className="mine__btn mine__btn--ghost"
+                loading={statsLoading}
+                onClick={() => {
+                  setStatsModalOpen(true);
+                  void loadStats();
+                }}
+              >
+                查看统计
+              </Button>
+            </View>
+            <Text className="mine__row mine__row--sub">
+              近 7 天帮助率 / 每日分布 / 无帮助问题 Top，仅配置了 ADMIN_OPENIDS 白名单的管理员可见
+            </Text>
+          </View>
+          <View className="mine__card">
             <Text className="mine__title">关于</Text>
             <Text className="mine__row">装修避坑顾问 · AI 垂直顾问</Text>
             <Text className="mine__row mine__row--sub">
               所有建议由 AI 整理行业资料生成，仅作参考，不替代施工/合同/验收等专业决策。
             </Text>
+          </View>
+        </View>
+      )}
+
+      {statsModalOpen && (
+        <View className="modal-mask" onClick={() => setStatsModalOpen(false)}>
+          <View className="modal modal--center" onClick={(e) => e.stopPropagation()}>
+            <View className="modal__header">
+              <Text className="modal__title">反馈复盘</Text>
+              <Text className="modal__close" onClick={() => setStatsModalOpen(false)}>
+                ×
+              </Text>
+            </View>
+            <ScrollView scrollY className="stats-body">
+              {statsLoading && <Text className="stats__empty">正在统计…</Text>}
+              {!statsLoading && statsError && (
+                <View>
+                  <Text className="stats__empty">统计不可用</Text>
+                  <Text className="stats__hint">{statsError}</Text>
+                </View>
+              )}
+              {!statsLoading && !statsError && stats && (
+                <View>
+                  <View className="stats-grid">
+                    <View className="stats-cell">
+                      <Text className="stats-cell__num">{stats.total}</Text>
+                      <Text className="stats-cell__label">总反馈</Text>
+                    </View>
+                    <View className="stats-cell stats-cell--good">
+                      <Text className="stats-cell__num">{stats.helpful}</Text>
+                      <Text className="stats-cell__label">有帮助</Text>
+                    </View>
+                    <View className="stats-cell stats-cell--bad">
+                      <Text className="stats-cell__num">{stats.unhelpful}</Text>
+                      <Text className="stats-cell__label">无帮助</Text>
+                    </View>
+                    <View className="stats-cell">
+                      <Text className="stats-cell__num">{stats.helpfulRate}%</Text>
+                      <Text className="stats-cell__label">帮助率</Text>
+                    </View>
+                  </View>
+
+                  <Text className="stats__title">每日分布（近 {stats.daily.length} 天）</Text>
+                  <View className="stats-daily">
+                    {stats.daily.map((d) => (
+                      <View key={d.date} className="stats-daily__row">
+                        <Text className="stats-daily__date">{d.date.slice(5)}</Text>
+                        <View className="stats-daily__bar">
+                          <View
+                            className="stats-daily__fill"
+                            style={{ width: `${d.total === 0 ? 0 : Math.max(8, (d.total / 30) * 100)}%` }}
+                          />
+                        </View>
+                        <Text className="stats-daily__count">{d.total}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  <Text className="stats__title">无帮助问题 Top</Text>
+                  {stats.topUnhelpfulQuestions.length === 0 ? (
+                    <Text className="stats__hint">暂无无帮助问题（表现很好）</Text>
+                  ) : (
+                    stats.topUnhelpfulQuestions.map((q, i) => (
+                      <View key={i} className="stats-top">
+                        <Text className="stats-top__idx">{i + 1}</Text>
+                        <Text className="stats-top__q">{q.question}</Text>
+                        <Text className="stats-top__count">{q.count} 次</Text>
+                      </View>
+                    ))
+                  )}
+                </View>
+              )}
+            </ScrollView>
           </View>
         </View>
       )}

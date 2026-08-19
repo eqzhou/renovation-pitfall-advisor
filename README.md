@@ -12,7 +12,7 @@
 - **结构化回答**：`claim`（核心结论）+ `step`（分步建议）+ `warning`（风险提醒）三段式，便于对照施工核对
 - **免费额度 + 付费解锁**：每日免费 N 次（可配），额度用尽弹窗引导付费；微信支付回调幂等、订单失败回滚、前端乐观解锁
 - **避坑清单报告**：把会话中多轮回答按场景聚合为可复用的避坑清单（`ai-report`）；支持**复制为 Markdown 文本**导出 + **微信转发卡片**分享（带 reportId，接收端一键加载同一份报告，`report-get`）
-- **反馈采集**：用户对回答点「有帮助 / 无帮助」，附带 `sessionId` 可追溯回会话
+- **反馈采集 + 复盘**：用户对回答点「有帮助 / 无帮助」附带 `sessionId` 追溯；`feedback.stats` 给管理员提供近 N 天帮助率/每日分布/无帮助问题 Top（`ADMIN_OPENIDS` 白名单鉴权）
 - **会话本地持久化**：消息落本地 storage 刷新不丢，支持多会话历史（新建/切换/删除，自动裁剪容量）
 - **微信 AI 开发模式接入**：以独立分包形式暴露 `renovationAdvisor` 技能（`skills/renovation-advisor`），供微信 AI 按 AGENTS.md 调用
 - **契约驱动开发**：前后端共享 `routes.ts` 单一事实源，契约测试保证路由一致
@@ -67,6 +67,7 @@ npm run build:weapp  # 产物输出到 dist/weapp/
 | `HUNYUAN_API_KEY` | 混元密钥（HTTP 直连时必填） | — |
 | `HUNYUAN_MODEL` | 混元模型名 | `hunyuan-turbo-latest` |
 | `DAILY_FREE_LIMIT` | 每日免费咨询次数 | `5` |
+| `ADMIN_OPENIDS` | 反馈复盘管理员 openid 白名单（逗号分隔，配置在 `feedback-stats` 云函数） | — |
 
 **安全约定**：密钥只配置在云函数环境变量中，前端与仓库均不落地。公开仓库中 `ai-ask/impl.js` 只读取 `process.env.*`。
 
