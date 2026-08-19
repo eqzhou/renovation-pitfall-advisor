@@ -112,6 +112,22 @@ export interface PayOrderCreateResponse {
   hint?: string;
 }
 
+/** 反馈复盘统计响应体（feedback.stats） */
+export interface FeedbackStatsResponse {
+  /** 窗口内反馈总数 */
+  total: number;
+  /** 有帮助数 */
+  helpful: number;
+  /** 无帮助数 */
+  unhelpful: number;
+  /** 帮助率（保留一位小数百分比，如 75 表示 75%） */
+  helpfulRate: number;
+  /** 近 N 天每日分布（从旧到新，含补零） */
+  daily: { date: string; total: number; helpful: number; unhelpful: number }[];
+  /** 被标记“无帮助”次数最多的问题 Top5（复盘最高信号样本） */
+  topUnhelpfulQuestions: { question: string; count: number }[];
+}
+
 /** 统一响应外壳：无论成功/失败都返回固定结构，前端透明处理 */
 export interface ApiEnvelope<T> {
   code: number; // 0 成功；其他均为明确错误码

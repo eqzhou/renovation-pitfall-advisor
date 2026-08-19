@@ -68,3 +68,9 @@ registerServerRoute({
   path: '/feedback',
   handler: 'cloudfunctions/feedback/index.main',
 });
+registerServerRoute({
+  id: 'feedback.stats',
+  method: 'GET',
+  path: '/feedback/stats',
+  handler: 'cloudfunctions/feedback-stats/index.main',
+});
