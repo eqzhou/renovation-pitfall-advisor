@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Input, ScrollView, View, Text } from '@tarojs/components';
-import Taro, { useDidShow } from '@tarojs/taro';
+import Taro, { useDidShow, useRouter, useShareAppMessage } from '@tarojs/taro';
 import { aiAsk } from '@/api/aiAsk';
 import { quotaGet } from '@/api/quotaGet';
 import { payOrderCreate } from '@/api/payOrderCreate';
 import { aiReport, type ReportHistory } from '@/api/aiReport';
+import { reportGet } from '@/api/reportGet';
 import { feedbackSubmit } from '@/api/feedbackSubmit';
+import { formatReportToText } from '@/utils/report-format';
 import type {
   AiReportResponse,
   AiScene,
@@ -146,6 +148,46 @@ export default function Index() {
   const [report, setReport] = useState<AiReportResponse | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [submittingFeedback, setSubmittingFeedback] = useState<string | null>(null);
+
+  /** 转发卡片携带的报告 id：`pages/index/index?reportId=xxx`，供分享接收端读取 */
+  const router = useRouter();
+  const shareReportId = (router.params && router.params.reportId) || '';
+
+  // 从分享卡片进入：按 reportId 取回已保存的报告并切到报告 tab（仅挂载时执行一次）
+  useEffect(() => {
+    if (!shareReportId) return;
+    let cancelled = false;
+    setReportLoading(true);
+    reportGet(shareReportId)
+      .then((r) => {
+        if (cancelled) return;
+        setReport(r);
+        setTab('report');
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        Taro.showToast({ title: `报告加载失败：${msg}`, icon: 'none', duration: 3500 });
+      })
+      .finally(() => {
+        if (!cancelled) setReportLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shareReportId]);
+
+  // 右上角转发：有报告时携带 reportId，让接收端可加载同一份报告
+  useShareAppMessage(() => {
+    if (report) {
+      return {
+        title: `装修避坑清单｜已汇总 ${report.coveredQuestions} 个问题`,
+        path: `pages/index/index?reportId=${report.reportId}`,
+      };
+    }
+    return { title: '装修避坑顾问 · AI 帮你避开装修坑', path: 'pages/index/index' };
+  });
 
   // scrollToBottomId 取最后一条消息的 id（每条消息的 id 都来自 shortId()，全局唯一）。
   // 之前用 `msg-${messages.length}` 作为 id 赋给所有 assistant 消息 → 多条消息重复 id（HTML/WXML 非法），
@@ -377,6 +419,18 @@ export default function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
+  /** 把当前报告导出为 Markdown 文本并复制到剪贴板 */
+  async function copyReport() {
+    if (!report) return;
+    try {
+      await Taro.setClipboardData({ data: formatReportToText(report) });
+      Taro.showToast({ title: '已复制，可粘贴到备忘录或发给家人', icon: 'none', duration: 2500 });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Taro.showToast({ title: `复制失败：${msg}`, icon: 'none' });
+    }
+  }
+
   async function handleFeedback(answerId: string, helpful: boolean, question?: string) {
     setSubmittingFeedback(answerId);
     try {
@@ -588,12 +642,33 @@ export default function Index() {
           <View className="report-header">
             <Text className="report-header__title">《避坑清单》</Text>
             <Text className="report-header__sub">
-              基于本次会话 {messages.length > 0 ? `已回答 ${messages.filter((m) => m.role === 'assistant').length} 个问题` : '暂无回答'}，
-              分类聚合后的核对清单
+              {shareReportId
+                ? '来自好友分享的避坑清单'
+                : `基于本次会话 ${messages.length > 0 ? `已回答 ${messages.filter((m) => m.role === 'assistant').length} 个问题` : '暂无回答'}，分类聚合后的核对清单`}
             </Text>
-            <Button size="mini" className="report-actions__btn" loading={reportLoading} onClick={runReport}>
-              {report ? '重新生成' : '生成清单'}
-            </Button>
+            <View className="report-actions">
+              <Button size="mini" className="report-actions__btn" loading={reportLoading} onClick={runReport}>
+                {report ? '重新生成' : '生成清单'}
+              </Button>
+              {report && (
+                <>
+                  <Button
+                    size="mini"
+                    className="report-actions__btn report-actions__btn--ghost"
+                    onClick={copyReport}
+                  >
+                    复制清单
+                  </Button>
+                  <Button
+                    size="mini"
+                    className="report-actions__btn report-actions__btn--ghost"
+                    openType="share"
+                  >
+                    分享
+                  </Button>
+                </>
+              )}
+            </View>
           </View>
 
           {report ? (

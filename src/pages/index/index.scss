@@ -412,8 +412,13 @@
     line-height: 1.4;
   }
 }
-.report-actions__btn {
+.report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-top: 16px;
+}
+.report-actions__btn {
   background: var(--brand);
   color: var(--brand-contrast);
   font-family: var(--font-sans);
@@ -423,6 +428,12 @@
   line-height: 60px;
   padding: 0 24px;
   &::after { border: none; }
+
+  &--ghost {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text-secondary);
+  }
 }
 
 .report-list {
