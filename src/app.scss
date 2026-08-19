@@ -1,0 +1,10 @@
+// 全局样式：暗色主题 + 字体规范（<14px 无衬线，>=14px 可衬线）
+// @use 替代 @import：Dart Sass 3.0 将移除 @import，且只涉及 CSS 变量，无复用 mixin 冲突
+@use './styles/theme';
+
+page {
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-family: -apple-system, 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  min-height: 100%;
+}

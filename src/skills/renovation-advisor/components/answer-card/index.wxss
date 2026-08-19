@@ -1,0 +1,71 @@
+/* answer-card：暗色主题；<14px 无衬线，>=14px 衬线；对比度 WCAG AA */
+.card {
+  background: #1f1f23;
+  border-radius: 16px;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.card__title {
+  font-family: 'Songti SC', 'Noto Serif SC', Georgia, serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: #f2f2f2;
+  margin-bottom: 16px;
+}
+
+.chunk {
+  background: #2a2a2f;
+  border: 1px solid #313136;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.chunk__tag {
+  display: inline-block;
+  font-family: -apple-system, 'Helvetica Neue', 'PingFang SC', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.chunk__text {
+  font-family: 'Songti SC', 'Noto Serif SC', Georgia, serif;
+  font-size: 15px;
+  line-height: 1.55;
+  color: #f2f2f2;
+}
+
+.chunk--claim {
+  border-left: 3px solid #4a7dff;
+}
+.chunk--claim .chunk__tag {
+  background: rgba(74, 125, 255, 0.18);
+  color: #6b95ff;
+}
+
+.chunk--step {
+  border-left: 3px solid #5ad8a6;
+}
+.chunk--step .chunk__tag {
+  background: rgba(90, 216, 166, 0.18);
+  color: #5ad8a6;
+}
+
+.chunk--warning {
+  border-left: 3px solid #ffb020;
+}
+.chunk--warning .chunk__tag {
+  background: rgba(255, 176, 32, 0.2);
+  color: #ffb020;
+}
+
+.disclaimer {
+  margin-top: 8px;
+  font-family: -apple-system, 'Helvetica Neue', 'PingFang SC', sans-serif;
+  font-size: 11px;
+  color: #8a8a94;
+}

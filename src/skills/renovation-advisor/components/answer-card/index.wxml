@@ -1,0 +1,16 @@
+<view class="card">
+  <view class="card__title">装修避坑建议</view>
+
+  <block wx:for="{{orderedChunks}}" wx:key="index">
+    <view class="chunk chunk--{{item.type}}">
+      <view class="chunk__tag">
+        <text wx:if="{{item.type === 'claim'}}">结论</text>
+        <text wx:elif="{{item.type === 'step'}}">步骤</text>
+        <text wx:elif="{{item.type === 'warning'}}">提醒</text>
+      </view>
+      <view class="chunk__text">{{item.content}}</view>
+    </view>
+  </block>
+
+  <view wx:if="{{disclaimer}}" class="disclaimer">{{disclaimer}}</view>
+</view>

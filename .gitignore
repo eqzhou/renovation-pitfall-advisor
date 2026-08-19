@@ -1,0 +1,19 @@
+node_modules/
+dist/
+output/
+.taro-home/
+.swc/
+rpt2_tsconfig.json
+.idea/
+.temp/
+.eslintrc
+tsconfig.tsbuildinfo
+.DS_Store
+*.map
+
+# 密钥/环境变量（公开仓库强制忽略，云函数密钥只在部署时配置到云环境）
+.env
+.env.*
+!.env.example
+*.pem
+*.key

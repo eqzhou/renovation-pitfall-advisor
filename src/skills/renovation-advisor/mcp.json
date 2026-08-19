@@ -1,0 +1,53 @@
+{
+  "apis": [
+    {
+      "name": "askRenovation",
+      "description": "向装修避坑顾问提出一个具体的装修问题，获得结构化的避坑建议（1 个结论 + 2-3 个步骤 + 1 个提醒）+ 免责声明。当用户提出预算/合同/水电/防水/验收/主材/施工纠纷等问题时调用。用户未说出具体问题时禁止调用，应先反问。",
+      "_meta": {
+        "ui": {
+          "componentPath": "components/answer-card/index",
+          "pagePath": "pages/index/index"
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "用户的具体装修问题原话，保留面积/阶段/材料/金额等关键细节。必填，禁止编造。"
+          },
+          "scene": {
+            "type": "string",
+            "enum": ["budget", "contract", "plumbing", "waterproof", "acceptance", "materials"],
+            "description": "问题所属场景，可选。由 AI 按关键词语义判断：预算/报价→budget；合同/条款→contract；水电/开槽→plumbing；防水/闭水→waterproof；验收/空鼓→acceptance；主材/进场→materials。跨场景或无法判断时留空（不传），不要强行选一个。"
+          }
+        },
+        "required": ["question"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "chunks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string", "enum": ["claim", "step", "warning"] },
+                "content": { "type": "string" }
+              },
+              "required": ["type", "content"]
+            }
+          },
+          "disclaimer": { "type": "string" }
+        },
+        "required": ["chunks", "disclaimer"]
+      }
+    }
+  ],
+  "components": [
+    {
+      "path": "components/answer-card/index",
+      "relatedPage": "/pages/index/index"
+    }
+  ]
+}

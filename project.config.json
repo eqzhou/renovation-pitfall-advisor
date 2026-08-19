@@ -1,0 +1,18 @@
+{
+  "miniprogramRoot": "dist/weapp/",
+  "projectname": "xiaochengxu",
+  "description": "AI 垂直顾问小程序（装修避坑）— M2 云开发 + AI 问答闭环",
+  "appid": "touristappid",
+  "cloudfunctionRoot": "dist/weapp/cloudfunctions/",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "compileHotReLoad": true,
+    "nodeModules": true
+  },
+  "compileType": "miniprogram",
+  "condition": {}
+}
