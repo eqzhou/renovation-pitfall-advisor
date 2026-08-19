@@ -7,12 +7,30 @@ import { payOrderCreate } from '@/api/payOrderCreate';
 import { aiReport, type ReportHistory } from '@/api/aiReport';
 import { feedbackSubmit } from '@/api/feedbackSubmit';
 import type {
-  AiAnswerChunk,
   AiReportResponse,
   AiScene,
   PayOrderCreateRequest,
   QuotaResponse,
 } from '@/cloudfunctions/shared/types';
+import {
+  appendAssistant,
+  appendUser,
+  createSession,
+  setActiveSceneOf,
+  setFeedbackOf,
+  sortByUpdatedAtDesc,
+  trimSessions,
+  type PersistedAssistantMsg,
+  type PersistedMsg as Msg,
+  type PersistedSession,
+  type PersistedUserMsg,
+} from '@/storage/session-pure';
+import {
+  loadCurrentId,
+  loadSessions,
+  saveCurrentId,
+  saveSessions,
+} from '@/storage/session-storage';
 import './index.scss';
 
 /** 6 个快捷场景模板：降低"空白对话"门槛 */
@@ -57,23 +75,8 @@ const UNLOCK_PLANS: {
 
 type Tab = 'chat' | 'report' | 'mine';
 
-interface UserMsg {
-  id: string;
-  role: 'user';
-  text: string;
-  scene?: AiScene;
-}
-interface AssistantMsg {
-  id: string;
-  role: 'assistant';
-  chunks: AiAnswerChunk[];
-  disclaimer: string;
-  /** 用户对这条回答的反馈状态：未评价 = undefined */
-  feedback?: boolean;
-  /** 该回答对应的用户问题（用来在反馈里一起存） */
-  question?: string;
-}
-type Msg = UserMsg | AssistantMsg;
+// Msg / PersistedSession 等消息与会话类型统一来自 @/storage/session-pure
+// （持久化数据模型），避免页面内重复定义导致两套漂移。
 
 type QuotaErrorKind = 'none' | 'rate';
 
@@ -98,7 +101,41 @@ export default function Index() {
 
   const [input, setInput] = useState('');
   const [activeScene, setActiveScene] = useState<AiScene | undefined>(undefined);
-  const [messages, setMessages] = useState<Msg[]>([]);
+
+  /**
+   * 会话持久化：sessions 全量存本地 storage，currentId 指向当前会话。
+   * 消息不再用独立 messages state —— 一律从 current 会话派生，
+   * 任何变更经 updateCurrent 写回 storage，刷新小程序不丢。
+   */
+  const [sessions, setSessions] = useState<PersistedSession[]>(() => {
+    let stored = loadSessions();
+    if (stored.length === 0) {
+      // 首次进入：创建默认会话并立即落盘（避免 useEffect 二次初始化，经验 162304）
+      const fresh = createSession(shortId('sess_'));
+      saveSessions([fresh]);
+      stored = [fresh];
+    }
+    return stored;
+  });
+  const [currentId, setCurrentId] = useState<string>(() => {
+    const saved = loadCurrentId();
+    if (saved && sessions.some((s) => s.id === saved)) return saved;
+    const first = sessions[0];
+    if (first) {
+      saveCurrentId(first.id);
+      return first.id;
+    }
+    return '';
+  });
+
+  const current = useMemo(
+    () => sessions.find((s) => s.id === currentId) ?? null,
+    [sessions, currentId],
+  );
+  const messages: Msg[] = current?.messages ?? [];
+  /** 随会话持久化的 sessionId（刷新不再重建） */
+  const sessionId = current?.id ?? '';
+
   const [loading, setLoading] = useState(false);
 
   const [quota, setQuota] = useState<QuotaResponse | null>(null);
@@ -118,8 +155,62 @@ export default function Index() {
     [messages],
   );
 
-  /** 会话 sessionId：前端首次生成即固定，用于 report 幂等存储 */
-  const sessionId = useMemo(() => shortId('sess_'), []);
+  /** 对当前会话做纯函数更新并写回 storage（唯一写入口，保证持久化一致） */
+  const updateCurrent = useCallback(
+    (updater: (s: PersistedSession) => PersistedSession) => {
+      setSessions((prev) => {
+        const idx = prev.findIndex((s) => s.id === currentId);
+        if (idx < 0) return prev;
+        const next = updater(prev[idx]);
+        const arr = prev.slice();
+        arr[idx] = next;
+        saveSessions(arr);
+        return arr;
+      });
+    },
+    [currentId],
+  );
+
+  /** 切换会话：恢复该会话场景，清空输入与报告（防止串会话） */
+  function switchSession(id: string) {
+    if (id === currentId) return;
+    const target = sessions.find((s) => s.id === id);
+    if (!target) return;
+    setCurrentId(id);
+    saveCurrentId(id);
+    setActiveScene(target.activeScene);
+    setInput('');
+    setReport(null);
+  }
+
+  /** 新建会话：追加到列表头部并切换过去（超量自动裁剪） */
+  function createNewSession() {
+    const fresh = createSession(shortId('sess_'));
+    const arr = trimSessions([fresh, ...sessions]);
+    setSessions(arr);
+    saveSessions(arr);
+    setCurrentId(fresh.id);
+    saveCurrentId(fresh.id);
+    setActiveScene(undefined);
+    setInput('');
+    setReport(null);
+    setTab('chat');
+  }
+
+  /** 删除会话：删空则自动补一个全新会话；删的是当前会话则切到最近一个 */
+  function deleteSession(id: string) {
+    const remaining = sessions.filter((s) => s.id !== id);
+    const arr = remaining.length > 0 ? remaining : [createSession(shortId('sess_'))];
+    setSessions(arr);
+    saveSessions(arr);
+    if (id === currentId) {
+      const nextId = arr[0].id;
+      setCurrentId(nextId);
+      saveCurrentId(nextId);
+      setActiveScene(arr[0].activeScene);
+      setReport(null);
+    }
+  }
 
   const refreshQuota = useCallback(async () => {
     try {
@@ -147,22 +238,23 @@ export default function Index() {
       return;
     }
     const sceneToUse = scene ?? activeScene;
-    const userMsg: Msg = { id: shortId('u_'), role: 'user', text: q, scene: sceneToUse };
+    const userMsg: PersistedUserMsg = { id: shortId('u_'), role: 'user', text: q, scene: sceneToUse };
     const assistantId = shortId('a_');
-    setMessages((prev) => [...prev, userMsg]);
+    // user 消息立即持久化：提问即写入 storage，加载中刷新也不丢
+    updateCurrent((s) => appendUser(s, userMsg));
     setInput('');
     setLoading(true);
 
     try {
       const resp = await aiAsk({ scene: sceneToUse, question: q });
-      const assistantMsg: Msg = {
+      const assistantMsg: PersistedAssistantMsg = {
         id: assistantId,
         role: 'assistant',
         chunks: resp.chunks,
         disclaimer: resp.disclaimer,
         question: q,
       };
-      setMessages((prev) => [...prev, assistantMsg]);
+      updateCurrent((s) => appendAssistant(s, assistantMsg));
       await refreshQuota();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -188,6 +280,7 @@ export default function Index() {
 
   function pickTemplate(tpl: (typeof SCENE_TEMPLATES)[number]) {
     setActiveScene(tpl.id);
+    updateCurrent((s) => setActiveSceneOf(s, tpl.id));
     submit(tpl.prompt, tpl.id);
   }
 
@@ -287,11 +380,10 @@ export default function Index() {
   async function handleFeedback(answerId: string, helpful: boolean, question?: string) {
     setSubmittingFeedback(answerId);
     try {
-      // 附带 sessionId：否则 answerId（前端内存短 id）刷新小程序后无法追溯到具体报告/会话
+      // 附带 sessionId：answerId 为前端短 id，靠 sessionId 才能追溯到具体会话/报告
       await feedbackSubmit({ answerId, helpful, question, sessionId });
-      setMessages((prev) =>
-        prev.map((m) => (m.role === 'assistant' && m.id === answerId ? { ...m, feedback: helpful } : m)),
-      );
+      // 反馈状态写入当前会话并持久化（刷新后仍保留"已评价"）
+      updateCurrent((s) => setFeedbackOf(s, answerId, helpful));
       Taro.showToast({ title: helpful ? '感谢，已标记为有帮助' : '感谢，已标记为无帮助', icon: 'none' });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -333,6 +425,9 @@ export default function Index() {
     if (!report) return [];
     return CATEGORY_ORDER.flatMap((cat) => report.items.filter((it) => it.category === cat));
   }, [report]);
+
+  /** 会话列表按最近更新降序展示 */
+  const sortedSessions = useMemo(() => sortByUpdatedAtDesc(sessions), [sessions]);
 
   return (
     <View className="page">
@@ -565,11 +660,43 @@ export default function Index() {
             </Button>
           </View>
           <View className="mine__card">
-            <Text className="mine__title">会话</Text>
-            <Text className="mine__row">本次 sessionId：{sessionId}</Text>
+            <View className="mine__card-head">
+              <Text className="mine__title">会话历史</Text>
+              <Button size="mini" className="mine__btn mine__btn--ghost" onClick={createNewSession}>
+                新会话
+              </Button>
+            </View>
             <Text className="mine__row mine__row--sub">
-              《避坑清单》报告以此 id 作为幂等键保存，关闭小程序后会生成新会话
+              消息已本地持久化，刷新小程序不丢；当前 {sessions.length} 个会话
             </Text>
+            {sortedSessions.length === 0 ? (
+              <Text className="mine__row mine__row--sub">暂无历史会话</Text>
+            ) : (
+              <View className="session-list">
+                {sortedSessions.map((s) => {
+                  const answerCount = s.messages.filter((m) => m.role === 'assistant').length;
+                  return (
+                    <View
+                      key={s.id}
+                      className={`session-item ${s.id === currentId ? 'session-item--active' : ''}`}
+                    >
+                      <View className="session-item__main" onClick={() => switchSession(s.id)}>
+                        <Text className="session-item__title">{s.title}</Text>
+                        <Text className="session-item__meta">
+                          {new Date(s.updatedAt).toLocaleString()} · {answerCount} 条回答
+                        </Text>
+                      </View>
+                      <Text
+                        className="session-item__del"
+                        onClick={() => deleteSession(s.id)}
+                      >
+                        删除
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </View>
           <View className="mine__card">
             <Text className="mine__title">关于</Text>

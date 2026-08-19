@@ -523,6 +523,11 @@
   border-radius: 16px;
   padding: 22px 24px;
 
+  &__card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
   &__title {
     display: block;
     font-family: var(--font-serif);
@@ -554,6 +559,67 @@
     line-height: 60px;
     padding: 0 24px;
     &::after { border: none; }
+    &--ghost {
+      margin-top: 0;
+      background: transparent;
+      border: 1px solid var(--border-strong);
+      color: var(--text-secondary);
+      height: 48px;
+      line-height: 48px;
+      font-size: 22px;
+      padding: 0 20px;
+    }
+  }
+}
+
+/* 会话历史列表 */
+.session-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.session-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+
+  &--active {
+    border-color: var(--brand);
+    background: color-mix(in srgb, var(--brand) 8%, var(--bg-elevated));
+  }
+
+  &__main {
+    flex: 1;
+    min-width: 0;
+  }
+  &__title {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 26px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  &__meta {
+    display: block;
+    margin-top: 4px;
+    font-family: var(--font-sans);
+    font-size: 20px;
+    color: var(--text-tertiary);
+  }
+  &__del {
+    font-family: var(--font-sans);
+    font-size: 22px;
+    color: var(--text-tertiary);
+    padding: 8px 4px 8px 12px;
+    flex-shrink: 0;
   }
 }
 
