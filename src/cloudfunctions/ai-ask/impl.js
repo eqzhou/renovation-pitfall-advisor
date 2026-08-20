@@ -218,6 +218,52 @@ const SCENE_WIKI = {
   ],
 };
 
+/**
+ * —— 多轮追问引导（规则层，mock 与真 LLM 统一附加）——
+ * 垂直场景的关键信息缺口可穷举（面积/预算/阶段/城市/户型），
+ * 用规则检测比让 LLM 额外输出更稳定、更可测，且不改变 LLM 输出契约。
+ */
+const FOLLOWUP_POOL = {
+  area: '你家大概多少平米（方便估算量级）？',
+  budget: '你准备的装修预算大概是多少（万元）？',
+  stage: '你目前处于装修哪个阶段（前期规划 / 施工中 / 验收 / 已入住）？',
+  city: '你在哪个城市装修（人工与材料费用差异较大）？',
+  layout: '户型是几居室？',
+};
+
+const HAS = {
+  area: /平|㎡|m²|平米|平方|sqm/i,
+  // 预算信息 = 出现具体金额（数字 + 万/元 等单位，或 ≥3 位数字），
+  // "预算"这个词本身不算已提供金额（否则"预算怎么控制"不会触发追问）
+  budget: /\d+\s*(万|w|元)|[0-9]{3,}/i,
+  stage: /毛坯|开工|施工|验收|入住|收房|精装|二手房|旧房|翻新|水电|贴砖|油漆/i,
+  city: /北京|上海|广州|深圳|杭州|成都|重庆|武汉|西安|南京|苏州|天津|长沙|郑州|青岛|大连|合肥|福州|厦门|昆明|宁波|无锡|佛山|东莞/i,
+  layout: /一居|两居|三居|四居|复式|跃层|别墅|loft/i,
+};
+
+/** 各场景建议追问的优先级顺序（最多取前 3 条缺口） */
+const SCENE_FOLLOWUPS = {
+  budget: ['area', 'budget', 'city'],
+  contract: ['stage', 'area'],
+  plumbing: ['area', 'stage'],
+  waterproof: ['area', 'layout'],
+  acceptance: ['stage', 'area'],
+  materials: ['area', 'city'],
+  general: ['stage', 'area', 'city'],
+};
+
+function buildFollowUps(scene, question) {
+  // 非字符串 / 空问题属于异常输入：无信息可判断缺口，返回空（不打扰）
+  if (typeof question !== 'string' || question.trim().length === 0) return [];
+  const keys = SCENE_FOLLOWUPS[scene] || SCENE_FOLLOWUPS.general;
+  const followUps = [];
+  for (const key of keys) {
+    if (followUps.length >= 3) break;
+    if (!HAS[key].test(question)) followUps.push(FOLLOWUP_POOL[key]);
+  }
+  return followUps;
+}
+
 function genericAnswer(question) {
   return [
     {
@@ -245,7 +291,7 @@ function genericAnswer(question) {
 function mockAnswer({ scene, question }) {
   const base = scene && SCENE_WIKI[scene] ? SCENE_WIKI[scene] : genericAnswer(question);
   const chunks = base.map((c) => ({ content: c.content, type: c.type }));
-  return { chunks, disclaimer: DISCLAIMER };
+  return { chunks, disclaimer: DISCLAIMER, followUps: buildFollowUps(scene, question) };
 }
 
 /** 组装给真 LLM 的 system prompt：带上知识库基础 + 强约束 JSON 输出 */
@@ -420,11 +466,12 @@ async function invokeLLM(params, cloudSdk) {
       return mockAnswer(params);
     case 'deepseek': {
       const chunks = await requestDeepSeek(params);
-      return { chunks, disclaimer: DISCLAIMER };
+      // 追问建议统一由规则层生成（不改变 LLM 输出契约）
+      return { chunks, disclaimer: DISCLAIMER, followUps: buildFollowUps(params.scene, params.question) };
     }
     case 'hunyuan': {
       const chunks = await requestHunyuan(params, cloudSdk);
-      return { chunks, disclaimer: DISCLAIMER };
+      return { chunks, disclaimer: DISCLAIMER, followUps: buildFollowUps(params.scene, params.question) };
     }
     default:
       throw new Error(
@@ -433,5 +480,11 @@ async function invokeLLM(params, cloudSdk) {
   }
 }
 
-// parseChunksFromLLM 导出：便于单元测试直接测（也是未来 SDK 层复用的入口）
-module.exports = { validateRequest, invokeLLM, mockAnswer, parseChunksFromLLM };
+// parseChunksFromLLM / buildFollowUps 导出：便于单元测试直接测（也是未来 SDK 层复用的入口）
+module.exports = {
+  validateRequest,
+  invokeLLM,
+  mockAnswer,
+  parseChunksFromLLM,
+  buildFollowUps,
+};
