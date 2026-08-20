@@ -30,6 +30,12 @@ export interface AiAnswerChunk {
 export interface AiAskResponse {
   chunks: AiAnswerChunk[];
   disclaimer: string;
+  /**
+   * 多轮追问引导：AI 检测到关键信息缺口（面积/预算/阶段/城市/户型）时给出的
+   * 追问建议（≤3 条，中文问题句）。前端渲染为"补充信息继续问"chips，
+   * 点击后以追问作为新问题继续多轮对话。
+   */
+  followUps?: string[];
 }
 
 /** AI 报告：基于会话历史的结构化《避坑清单》 */

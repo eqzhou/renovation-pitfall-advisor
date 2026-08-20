@@ -297,6 +297,7 @@ export default function Index() {
         chunks: resp.chunks,
         disclaimer: resp.disclaimer,
         question: q,
+        followUps: resp.followUps,
       };
       updateCurrent((s) => appendAssistant(s, assistantMsg));
       await refreshQuota();
@@ -607,6 +608,27 @@ export default function Index() {
                       </View>
                     ))}
                     <Text className="disclaimer">{m.disclaimer}</Text>
+                    {m.followUps && m.followUps.length > 0 && (
+                      <View className="followups">
+                        <Text className="followups__label">补充这些信息，回答会更准确：</Text>
+                        <View className="followups__chips">
+                          {m.followUps.map((fu, i) => (
+                            <Button
+                              key={i}
+                              size="mini"
+                              className="followups__chip"
+                              disabled={loading}
+                              onClick={() => {
+                                // 点击把追问填入输入框，用户补全信息后发送（形成多轮）
+                                setInput(fu);
+                              }}
+                            >
+                              {fu}
+                            </Button>
+                          ))}
+                        </View>
+                      </View>
+                    )}
                     <View className="feedback-row">
                       <Button
                         size="mini"

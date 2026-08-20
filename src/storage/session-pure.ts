@@ -21,6 +21,8 @@ export interface PersistedAssistantMsg {
   feedback?: boolean;
   /** 该回答对应的用户问题（反馈上报时一起存） */
   question?: string;
+  /** 多轮追问引导：关键信息缺口追问建议（≤3 条），随消息持久化 */
+  followUps?: string[];
 }
 export type PersistedMsg = PersistedUserMsg | PersistedAssistantMsg;
 
