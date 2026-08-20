@@ -3,6 +3,7 @@ dist/
 output/
 .taro-home/
 .swc/
+.deploy/
 rpt2_tsconfig.json
 .idea/
 .temp/

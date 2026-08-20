@@ -22,6 +22,13 @@ const LLM_TIMEOUT_MS = 20_000;
  * 让调用链（ai-ask index.js）可识别并返回"AI 响应超时，请稍后重试"的明确提示。
  */
 async function fetchWithTimeout(url, init, timeoutMs = LLM_TIMEOUT_MS) {
+  // 真实环境硬性前提：全局 fetch 需要 Node >= 18。
+  // 微信云函数若运行在 Node 12/16 会在此 ReferenceError 崩溃，这里给出可执行的报错引导。
+  if (typeof fetch !== 'function') {
+    throw new Error(
+      '[LLM] 云函数运行时缺少全局 fetch（Node < 18）：请在云开发控制台将 ai-ask 运行时切换为 Nodejs18.15+，或为该云函数配置 node-fetch 依赖',
+    );
+  }
   if (typeof AbortController === 'function') {
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -480,11 +487,12 @@ async function invokeLLM(params, cloudSdk) {
   }
 }
 
-// parseChunksFromLLM / buildFollowUps 导出：便于单元测试直接测（也是未来 SDK 层复用的入口）
+// parseChunksFromLLM / buildFollowUps / fetchWithTimeout 导出：便于单元测试直接测（也是未来 SDK 层复用的入口）
 module.exports = {
   validateRequest,
   invokeLLM,
   mockAnswer,
   parseChunksFromLLM,
   buildFollowUps,
+  fetchWithTimeout,
 };
