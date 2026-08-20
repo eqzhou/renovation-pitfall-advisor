@@ -54,11 +54,23 @@ npm run build:weapp  # 产物输出到 dist/weapp/
 
 1. 执行 `npm run build:weapp` 生成 `dist/weapp/`
 2. 微信开发者工具「导入项目」，选择 `dist/weapp/` 目录，填入你的小程序 AppID
-3. 在开发者工具中开通云开发环境，并将 `src/cloudfunctions/` 下的 6 个云函数 + `shared` 上传部署
+3. 在开发者工具中开通云开发环境（`cloud: true` 已在 app.config 开启），即可联调前端
+
+### 云函数联调前自检与部署准备
+
+```bash
+npm run verify:env   # 本地静态自检：Node/fetch、8 个云函数语法与依赖、环境变量清单
+npm run deploy:prep  # 生成 .deploy/<云函数>/：每个目录自包含 shared 副本，解决云端跨目录 require 失效
+```
 
 ## 云函数部署与环境变量
 
-云函数：`ai-ask`、`ai-report`、`feedback`、`pay-order`、`pay-notify`、`quota`（公共逻辑在 `shared`）。
+云函数：`ai-ask`、`ai-report`、`report-get`、`feedback`、`feedback-stats`、`pay-order`、`pay-notify`、`quota`（公共逻辑在 `shared`，部署时由 `deploy:prep` 打进各函数目录）。
+
+**部署要点（真实环境）**：
+- 微信云函数按单目录上传，`require('../shared/utils')` 跨目录在云端会失效 → 必须用 `npm run deploy:prep` 生成的 `.deploy/<name>/` 目录上传
+- **运行时需选 Nodejs18.15+**：真 LLM（deepseek/hunyuan）依赖全局 `fetch`，Node < 18 会报错（代码已做明确提示）
+- 每个云函数「上传并部署：云端安装依赖」
 
 | 变量 | 作用 | 默认 |
 |---|---|---|

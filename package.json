@@ -15,7 +15,9 @@
     "build:h5": "HOME=\"$(pwd)/.taro-home\" USERPROFILE=\"$(pwd)/.taro-home\" taro build --type h5",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "verify:env": "node scripts/verify-real-env.mjs",
+    "deploy:prep": "node scripts/prepare-deploy.mjs"
   },
   "dependencies": {
     "@babel/runtime": "^7.20.0",

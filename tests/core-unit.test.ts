@@ -54,6 +54,19 @@ describe('ai-ask / validateRequest', () => {
   });
 });
 
+describe('ai-ask / fetchWithTimeout', () => {
+  it('运行时缺少全局 fetch => 抛可执行的报错（Node < 18 云函数环境）', async () => {
+    const orig = globalThis.fetch;
+    try {
+      // 模拟微信云函数老运行时（Node 12/16）无全局 fetch
+      delete (globalThis as any).fetch;
+      await expect(aiAsk.fetchWithTimeout('https://x', {})).rejects.toThrow(/Node < 18|node-fetch/);
+    } finally {
+      (globalThis as any).fetch = orig;
+    }
+  });
+});
+
 // 用 eval 访问 module.exports 的私有函数（非导出的 parseChunksFromLLM 测试会通过 aiAsk 的 mockAnswer 间接覆盖，
 // 为了真正覆盖 parse 层，我们在 impl.js 末尾补了导出 parseChunksFromLLM）。
 describe('ai-ask / parseChunksFromLLM', () => {
